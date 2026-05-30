@@ -1,0 +1,19 @@
+# secrets — never commit
+.env
+*.env
+vault*
+*secret*
+*token*
+*credential*
+*.pem
+*.key
+
+# local handoff output (project state, not skill source)
+handoff/
+LATEST*.md
+CKPT-*.md
+
+# noise
+__pycache__/
+*.pyc
+.DS_Store
