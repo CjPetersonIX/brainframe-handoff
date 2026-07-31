@@ -15,12 +15,12 @@ it writes a structured `CKPT-N` checkpoint — what changed, where things stand,
 next action, system state, and files touched — so the next session resumes cold without
 re-reading the whole history.
 
-Part of the [BRAINFRAME skills](https://github.com/The9thRealm/brainframe-skills) collection.
+Part of the [BRAINFRAME skills](https://github.com/CjPetersonIX/brainframe-skills) collection.
 
 ## Install (one line)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/The9thRealm/brainframe-handoff/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CjPetersonIX/brainframe-handoff/main/install.sh | bash
 ```
 
 Installs to `~/.claude/skills/handoff/` by default. Override with `SKILLS_DIR=...`.
