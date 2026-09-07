@@ -1,61 +1,56 @@
 # brainframe-handoff
 
-```
-██████╗ ██████╗  █████╗ ██╗███╗   ██╗███████╗██████╗  █████╗ ███╗   ███╗███████╗
-██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║██╔════╝██╔══██╗██╔══██╗████╗ ████║██╔════╝
-██████╔╝██████╔╝███████║██║██╔██╗ ██║█████╗  ██████╔╝███████║██╔████╔██║█████╗
-██╔══██╗██╔══██╗██╔══██║██║██║╚██╗██║██╔══╝  ██╔══██╗██╔══██║██║╚██╔╝██║██╔══╝
-██████╔╝██║  ██║██║  ██║██║██║ ╚████║██║     ██║  ██║██║  ██║██║ ╚═╝ ██║███████╗
-╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝
-                  S K I L L   ·   H A N D O F F
-```
+Portable skill: write a structured **CKPT** so the next session resumes cold.
 
-A portable agent skill for **session continuity**. Before a context limit or session end,
-it writes a structured `CKPT-N` checkpoint — what changed, where things stand, the single
-next action, system state, and files touched — so the next session resumes cold without
-re-reading the whole history.
+Companion to [brainframe-qpulse](https://github.com/CjPetersonIX/brainframe-qpulse).  
+Part of the public BrainFrame **wrapper** skill set — not the full OS.
 
-Part of the [BRAINFRAME skills](https://github.com/The9thRealm/brainframe-skills) collection.
-
-## Install (one line)
+## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/The9thRealm/brainframe-handoff/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CjPetersonIX/brainframe-handoff/main/install.sh | bash
 ```
 
-Installs to `~/.claude/skills/handoff/` by default. Override with `SKILLS_DIR=...`.
+Default: `~/.claude/skills/handoff/`. Override with `SKILLS_DIR=...`.
 
-## Why
+## CKPT stamp (2026.09)
 
-Agent sessions die — context fills, terminals close, machines reboot. Writing a handoff
-costs seconds; not having one costs an hour of re-deriving "what was I doing and what's
-next". The skill standardizes that note so it's always startable cold.
-
-## The checkpoint
+Do not use a bare `CKPT-42` as the only identifier once more than one brain exists.
 
 ```
-CKPT-42  ·  agent  ·  2026-05-30 11:10 PT
-
-## SUMMARY      — what changed this session, and why
-## PROGRESS     — per-task ✅ done / ⏳ now / ☐ next / ❌ blocked
-## NEXT ACTION  — the one concrete thing to do next (paths, commands, lines)
-## SYSTEM STATE — anything not in git the next session needs
-## FILES CHANGED— path — one-line what/why
+<NODE-ID> CKPT <MASTER>.<LOCAL>
 ```
 
-See [`SKILL.md`](SKILL.md) for the full format and rules.
+| Piece | Meaning |
+|---|---|
+| `NODE-ID` | This machine / brain (`MAC-BRAIN-01`, `HOME-01`, …) |
+| `MASTER` | Shared epoch on a network; `1` if this box is alone |
+| `LOCAL` | Millidigit — **how many updates this brain stacked since last fold** |
+
+Rules:
+
+- The millidigit is a **counter**, not a decimal. `.07` = 7, `.159` = 159. Compare as `(int(master), int(local))`. Never parse the stamp as a float (`.20` vs `.159` reverses if you do).
+- Every agent **on this brain** increments the **same** millidigit. VP3 does not start a private `.01`.
+- A network fold (`/masterq` or your hub) bumps `MASTER` and resets each brain to `.00`.
+- Between folds, keep counting. Disconnected brains come back carrying their millidigit — that is the receipt.
+- Write handoffs to the project's agreed file on **`main`**. A checkpoint that only exists on a feature branch is invisible to other brains.
+
+Standalone example:
+
+```
+HOME-01 CKPT 1.12  ·  VP1  ·  2026-09-07 13:05 PDT
+```
+
+Network example:
+
+```
+MAC-BRAIN-02 CKPT 5289.07  ·  VP3  ·  2026-09-07 13:05 PDT
+```
+
+Full format and bans: [`SKILL.md`](SKILL.md).
 
 ## Safety
 
-The skill **never writes secret values** into a handoff — credentials are referenced by
-name only (`needs DB_URL from vault`). The bundled `.gitignore` also keeps generated
-handoff files out of source control.
-
-## Adopting in other CLIs
-
-`SKILL.md` is plain Markdown — install it as a Claude Code skill, or paste its body into
-any agent's rules/system prompt. The format is tool-agnostic.
-
-## License
+Never write secret values. Name the credential (`needs TOOL_API_SECRET from vault`).
 
 Public reference skill. Adopt freely.

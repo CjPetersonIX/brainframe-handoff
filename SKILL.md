@@ -1,78 +1,72 @@
 ---
 name: handoff
-description: Write a structured checkpoint ("handoff") that lets the next session resume cleanly — what changed, where things stand, the next concrete action, system state, and files touched. Invoke before a context limit, at session end, when the user says "checkpoint", "handoff", "save state", or "wrap up", and proactively when a long session is nearing its limit.
+description: Write a structured CKPT handoff so the next session resumes cold. Stamp is <NODE-ID> CKPT <MASTER>.<LOCAL>. Invoke before a context limit, at session end, on checkpoint/handoff/wrap up, and before risky interrupts.
 ---
 
-# Handoff — session continuity checkpoint
+# Handoff — session continuity
 
-Agent sessions are mortal: context windows fill, terminals close, machines reboot. A
-**handoff** is the cheap insurance — a structured note written *before* the lights go out
-so the next session (you, tomorrow, or a teammate's agent) resumes without re-deriving
-everything from scratch.
+Sessions die. A handoff is the resume point.
 
-The cost of writing one is seconds. The cost of not having one is an hour of re-reading
-diffs and guessing what "next" was.
+## Stamp
 
-## When to write one
+```
+<NODE-ID> CKPT <MASTER>.<LOCAL>  ·  <seat>  ·  <date> <HH:MM TZ>
+```
 
-- **Proactively**, when a long session is approaching its context limit — don't wait to be
-  cut off mid-thought.
-- At the **end of a work session**, even a successful one.
-- Before any **risky or interrupting** operation (a migration, a long build, a reboot).
-- Whenever the user says checkpoint / handoff / save state / wrap up.
+- `NODE-ID` — this brain. Required. A bare number is incomplete on a network.
+- `MASTER` — shared epoch (network) or `1` (standalone).
+- `LOCAL` — this brain's millidigit. **Counter.** Zero-pad to 2 digits while small (`.00`, `.07`); it may grow past 99 (`.159`).
+- Compare as two integers, never as a float.
+- All seats on this brain **add on** to `LOCAL`. No per-agent restart.
+- After a network fold, `MASTER` +1 and `LOCAL` resets to `.00` (first write `.01`).
 
-## Where it goes
+If the project already has a stamp convention that matches this shape, use it. If it only has `CKPT-N`, upgrade the next write to the full stamp.
 
-Append to (or overwrite, per project convention) the project's handoff file. Default:
-`handoff/LATEST.md` at the project root. Keep a running `CKPT-N` counter; increment each
-time. If the project already has a handoff location or format, match it.
+## Where
+
+Default: `handoff/LATEST_HANDOFF.txt` or `handoff/LATEST.md` at the project root. Prepend or append per project rule; default is **prepend** a new block so the tip is current. Do not rotate the live file to archive unless the project says so.
+
+Commit state to `main`. Do not park the only copy on a PR branch.
 
 ## Format
 
 ```
-CKPT-<N>  ·  <agent/author>  ·  <date> <HH:MM TZ>
+<NODE-ID> CKPT <MASTER>.<LOCAL>  ·  <seat>  ·  <date> <HH:MM TZ>
 
 ## SUMMARY
-<2–5 sentences: what this session was about and what changed. The "why", not just "what".>
+<2–5 sentences: what changed and why.>
 
 ## PROGRESS
 ### <TASK-ID> — <Title>
-  ✅ <done step>
-  ⏳ <current step — where you actually are right now>
-  ☐ <next step>
-  ❌ <blocked step — and on what>
+  ✅ <done>
+  ⏳ <now>
+  ☐ <next>
+  ❌ <blocked — on what / whom>
 
 ## NEXT ACTION
-<The single most important thing to do next, concrete enough to start cold.
- File paths, commands, line numbers — not "continue the work".>
+<One concrete start-cold step. Paths, commands, lines.>
 
 ## SYSTEM STATE
-<Anything the next session needs that isn't in git: running services, env assumptions,
- a server left running on a port, a branch checked out, credentials needed (by NAME only).>
+<Ports, daemons, branch, RAM if relevant. Credential NAMES only.>
 
 ## FILES CHANGED
-- <path> — <one-line what/why>
+- <path> — <what/why>
 ```
 
 ## Steps
 
-1. Determine the next `CKPT-N` (read the existing handoff file; increment its highest N).
-2. Draft each section. Be specific in **NEXT ACTION** — it's the section that saves the most
-   time. "Wire `handleTimeout()` in auth/middleware.ts:88, then run `npm test auth`" beats
-   "finish auth".
-3. List changed files from your own edits this session (or `git status` / `git diff --name-only`).
-4. Write the checkpoint to the handoff file.
-5. Tell the user the checkpoint ID and where it was written. One line.
+1. Read the current handoff. Take this brain's high-water `LOCAL` and add 1. Do not invent `.01` because you are a different VP.
+2. Draft the sections. NEXT ACTION must be startable with a cold context.
+3. List files you actually touched.
+4. Write the block. Prepend unless the project appends.
+5. If qpulse is installed, refresh the pulse in the same sitting.
+6. Tell the user the full stamp and path. One line.
 
 ## Don't
 
-- **Never put secret values in the handoff.** Reference credentials by name
-  (`needs DB_URL from vault`), never by value. Handoff files are easy to commit by accident.
-- Don't write a transcript. A handoff is a *resume point*, not a diary — skip blow-by-blow.
-- Don't claim a step is done if it isn't. A wrong ✅ sends the next session down a dead end.
-- Don't summarize already-finished tasks at length; lead with what's live and what's next.
-
-## Pairing
-
-If a status-dashboard skill (`qpulse`) is installed, treat **handoff + pulse as a pair**:
-refresh the pulse whenever you write a handoff, so the live board and the saved state agree.
+- Secrets in the file.
+- Transcript / diary.
+- Fake ✅.
+- Float-sort millidigits.
+- Per-agent millidigit restart.
+- Handoff only on a feature branch when other brains need it.
